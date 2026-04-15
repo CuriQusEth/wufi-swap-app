@@ -1,0 +1,6 @@
+{
+  "name": "ArcSwap",
+  "description": "A modern crypto swap web application using Arc App Kit SDK.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

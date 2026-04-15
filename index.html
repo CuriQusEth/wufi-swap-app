@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Google AI Studio App</title>
+    <script>
+      // Suppress known browser extension conflict errors (e.g., multiple wallets fighting over window.ethereum)
+      window.addEventListener('error', function(e) {
+        const msg = e.message || '';
+        if (
+          msg.includes('isZerion') || 
+          msg.includes('ethereum proxy') || 
+          msg.includes('fetch of #<Window>') ||
+          msg.includes('Cannot both specify accessors and a value')
+        ) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          console.warn('Suppressed extension conflict error:', msg);
+        }
+      }, true);
+
+      window.addEventListener('unhandledrejection', function(e) {
+        const msg = (e.reason && e.reason.message) || '';
+        if (
+          msg.includes('isZerion') || 
+          msg.includes('ethereum proxy') || 
+          msg.includes('fetch of #<Window>') ||
+          msg.includes('Cannot both specify accessors and a value')
+        ) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          console.warn('Suppressed extension conflict promise rejection:', msg);
+        }
+      }, true);
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
