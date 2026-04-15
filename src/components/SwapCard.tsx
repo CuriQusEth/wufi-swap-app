@@ -29,7 +29,7 @@ export function SwapCard({ adapter, address }: SwapCardProps) {
       return;
     }
 
-    const kitKey = import.meta.env.VITE_ARC_KIT_KEY;
+    const kitKey = import.meta.env.VITE_KIT_KEY;
     if (!kitKey) {
       setErrorMessage('Arc Kit Key is not configured in environment variables.');
       setTxStatus('error');
