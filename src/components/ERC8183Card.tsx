@@ -35,8 +35,21 @@ export function ERC8183Card({ address }: ERC8183Props) {
     setTxHash(null);
 
     try {
-      const publicClient = createPublicClient({ transport: custom(window.ethereum as any) });
-      const walletClient = createWalletClient({ transport: custom(window.ethereum as any) });
+      const arcTestnet = {
+        id: 5042002,
+        name: 'Arc Testnet',
+        nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+        rpcUrls: { default: { http: ['https://testnet.arcscan.app'] } }
+      } as const;
+
+      const publicClient = createPublicClient({ 
+        chain: arcTestnet,
+        transport: custom(window.ethereum as any) 
+      });
+      const walletClient = createWalletClient({ 
+        chain: arcTestnet,
+        transport: custom(window.ethereum as any) 
+      });
       const account = address as `0x${string}`;
       let finalHash: `0x${string}` | null = null;
 
