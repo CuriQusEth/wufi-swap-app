@@ -16,9 +16,26 @@ export default function App() {
     <div className="min-h-screen flex flex-col">
       {/* Navigation */}
       <header className="px-8 py-4 flex items-center justify-between border-b border-border">
-        <div className="flex items-center gap-2.5 text-xl font-bold tracking-tight">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#3d6eff] to-[#ff3dbe]"></div>
-          Arc Agentic App
+        <div className="flex items-center gap-3 text-2xl font-bold tracking-tight">
+          <img 
+            src="/logo.png" 
+            alt="Arconomy Logo" 
+            className="w-10 h-10 object-contain"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              if (e.currentTarget.nextElementSibling) {
+                (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
+              }
+            }}
+          />
+          {/* Fallback CSS Logo if image is not uploaded yet */}
+          <div className="hidden w-10 h-10 rounded-full border-[2px] border-[#3d6eff] items-center justify-center relative bg-gradient-to-br from-[#0B1B3D] to-[#1A3673] shadow-[0_0_15px_rgba(61,110,255,0.5)]">
+            <span className="text-[#F1C40F] font-black text-xl italic" style={{ textShadow: "0 0 10px rgba(241,196,15,0.8)" }}>A</span>
+            <div className="absolute top-0 right-0 w-3 h-3 bg-[#3d6eff] rounded-full border border-[#0B1B3D]"></div>
+          </div>
+          <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-blue-200 to-white">
+            ARCONOMY
+          </span>
         </div>
         <WalletButton 
           address={address} 

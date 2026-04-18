@@ -1,6 +1,6 @@
 {
-  "name": "ArcSwap",
-  "description": "A modern crypto swap web application using Arc App Kit SDK.",
+  "name": "Arconomy",
+  "description": "Agentic Economy & Escrow Protocol using ERC-8183 on Arc Testnet.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }
