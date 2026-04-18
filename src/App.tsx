@@ -53,7 +53,7 @@ export default function App() {
             <AlertCircle className="shrink-0 mt-0.5 text-yellow-500" size={18} />
             <p className="leading-snug">
               <strong className="text-yellow-400 block mb-1">Sandbox Preview Active</strong>
-              Cüzdan uzantıları (MetaMask) ve dış API çağrıları Sandbox panelinde engellenir. Bu yüzden fonksiyonlar çalışmaz. İşlem yapabilmek için <strong className="text-yellow-400">sağ üstteki ↗ (Yeni Sekmede Aç)</strong> butonuna tıklayın.
+              Wallet extensions (MetaMask) and external API calls are blocked in the Sandbox panel. To interact with the app, please click the <strong className="text-yellow-400">Open in New Tab (↗)</strong> button at the top right.
             </p>
           </div>
         )}
