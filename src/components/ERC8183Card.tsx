@@ -42,6 +42,40 @@ export function ERC8183Card({ address }: ERC8183Props) {
         rpcUrls: { default: { http: ['https://testnet.arcscan.app'] } }
       } as const;
 
+      // Request wallet to switch to Arc Testnet
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x4cece2' }], // 5042002 in hex
+        });
+      } catch (switchError: any) {
+        // This error code indicates that the chain has not been added to MetaMask.
+        if (switchError.code === 4902) {
+          try {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [
+                {
+                  chainId: '0x4cece2',
+                  chainName: 'Arc Testnet',
+                  rpcUrls: ['https://testnet.arcscan.app'],
+                  nativeCurrency: {
+                    name: 'ETH',
+                    symbol: 'ETH',
+                    decimals: 18
+                  },
+                  blockExplorerUrls: ['https://testnet.arcscan.app']
+                },
+              ],
+            });
+          } catch (addError) {
+            throw new Error('Cüzdana Arc Testnet eklenemedi. Lütfen manuel olarak ekleyin.');
+          }
+        } else {
+          throw new Error('Arc Testnet ağına geçiş reddedildi veya başarısız oldu.');
+        }
+      }
+
       const publicClient = createPublicClient({ 
         chain: arcTestnet,
         transport: custom(window.ethereum as any) 
