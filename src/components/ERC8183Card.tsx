@@ -46,7 +46,7 @@ export function ERC8183Card({ address }: ERC8183Props) {
       try {
         await window.ethereum.request({
           method: 'wallet_switchEthereumChain',
-          params: [{ chainId: '0x4cece2' }], // 5042002 in hex
+          params: [{ chainId: '0x4cef52' }], // 5042002 in hex
         });
       } catch (switchError: any) {
         // This error code indicates that the chain has not been added to MetaMask.
@@ -56,7 +56,7 @@ export function ERC8183Card({ address }: ERC8183Props) {
               method: 'wallet_addEthereumChain',
               params: [
                 {
-                  chainId: '0x4cece2',
+                  chainId: '0x4cef52',
                   chainName: 'Arc Testnet',
                   rpcUrls: ['https://testnet.arcscan.app'],
                   nativeCurrency: {
