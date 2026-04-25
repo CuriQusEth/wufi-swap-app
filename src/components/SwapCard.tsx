@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Settings, AlertCircle, CheckCircle2, Loader2, ArrowDownUp } from 'lucide-react';
 import { createWalletClient, createPublicClient, custom, parseUnits } from 'viem';
 import { TOKENS, ERC20_ABI, SWAP_ABI, SWAP_CONTRACT, ARC_TESTNET_CONFIG } from '../lib/contracts';
+import { useLogs } from '../context/LogContext';
 
 interface SwapCardProps {
   address: string | null;
@@ -10,6 +11,7 @@ interface SwapCardProps {
 const TOKEN_KEYS = Object.keys(TOKENS) as Array<keyof typeof TOKENS>;
 
 export function SwapCard({ address }: SwapCardProps) {
+  const { logAction } = useLogs();
   const [tokenIn, setTokenIn] = useState<keyof typeof TOKENS>('USDC');
   const [tokenOut, setTokenOut] = useState<keyof typeof TOKENS>('EURC');
   const [amountIn, setAmountIn] = useState('');
@@ -76,7 +78,9 @@ export function SwapCard({ address }: SwapCardProps) {
         functionName: 'approve',
         args: [SWAP_CONTRACT as `0x${string}`, parsedAmount],
         account: address as `0x${string}`,
-        chain: ARC_TESTNET_CONFIG
+        chain: ARC_TESTNET_CONFIG,
+        maxFeePerGas: 1000000000n,
+        maxPriorityFeePerGas: 1000000000n,
       });
       await publicClient.waitForTransactionReceipt({ hash: approveHash });
 
@@ -87,7 +91,9 @@ export function SwapCard({ address }: SwapCardProps) {
         functionName: 'swap',
         args: [addressIn as `0x${string}`, addressOut as `0x${string}`, parsedAmount],
         account: address as `0x${string}`,
-        chain: ARC_TESTNET_CONFIG
+        chain: ARC_TESTNET_CONFIG,
+        maxFeePerGas: 1000000000n,
+        maxPriorityFeePerGas: 1000000000n,
       });
       
       setTxHash(swapHash);
@@ -98,6 +104,9 @@ export function SwapCard({ address }: SwapCardProps) {
       }
 
       setTxStatus('success');
+      
+      logAction('Swap Tokens', address, `Swapped ${amountIn} ${tokenIn} for ${tokenOut}. TxHash: ${swapHash}`);
+      
     } catch (error: any) {
       console.error('Swap failed:', error);
       setErrorMessage(error.shortMessage || error.message || 'Swap transfer failed.');

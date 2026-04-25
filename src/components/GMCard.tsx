@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, CheckCircle2, AlertCircle, SunMedium, Flame } from 'lucide-react';
 import { createWalletClient, createPublicClient, custom } from 'viem';
+import { useLogs } from '../context/LogContext';
 
 interface GMCardProps {
   address: string | null;
 }
 
 export function GMCard({ address }: GMCardProps) {
+  const { logAction } = useLogs();
   const [streak, setStreak] = useState(0);
   const [lastGMTime, setLastGMTime] = useState<number | null>(null);
   
@@ -120,7 +122,10 @@ export function GMCard({ address }: GMCardProps) {
         abi: GM_ABI,
         functionName: 'gm',
         account,
-        chain: arcTestnet
+        chain: arcTestnet,
+        // Manual gas overrides to prevent eth_gasPrice RPC failures on unstable testnets
+        maxFeePerGas: 1000000000n, // 1 gwei
+        maxPriorityFeePerGas: 1000000000n, // 1 gwei
       });
 
       await publicClient.waitForTransactionReceipt({ hash });
@@ -138,6 +143,8 @@ export function GMCard({ address }: GMCardProps) {
         streak: newStreak,
         lastGMTime: currentTime
       }));
+      
+      logAction('GM Check-in', address, `Said GM onchain. New Streak: ${newStreak}. TxHash: ${hash}`);
 
       // Call Backend API to Process Circle Reward
       try {

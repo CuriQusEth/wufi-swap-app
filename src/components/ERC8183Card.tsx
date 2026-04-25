@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, AlertCircle, CheckCircle2, Loader2, Briefcase, History, X } from 'lucide-react';
 import { createWalletClient, createPublicClient, custom, parseAbi, parseUnits } from 'viem';
+import { useLogs } from '../context/LogContext';
 
 interface ERC8183Props {
   address: string | null;
@@ -17,6 +18,7 @@ interface TxHistory {
 }
 
 export function ERC8183Card({ address }: ERC8183Props) {
+  const { logAction } = useLogs();
   const [action, setAction] = useState('create');
   const [jobId, setJobId] = useState('1');
   const [providerAddr, setProviderAddr] = useState('');
@@ -124,7 +126,9 @@ export function ERC8183Card({ address }: ERC8183Props) {
             '0x0000000000000000000000000000000000000000'
           ],
           account,
-          chain: arcTestnet
+          chain: arcTestnet,
+          maxFeePerGas: 1000000000n,
+          maxPriorityFeePerGas: 1000000000n,
         });
       } 
       else if (action === 'budget') {
@@ -135,7 +139,9 @@ export function ERC8183Card({ address }: ERC8183Props) {
           functionName: 'setBudget',
           args: [BigInt(jobId), parseUnits(amount, 6), '0x'],
           account,
-          chain: arcTestnet
+          chain: arcTestnet,
+          maxFeePerGas: 1000000000n,
+          maxPriorityFeePerGas: 1000000000n,
         });
       } 
       else if (action === 'fund') {
@@ -147,7 +153,9 @@ export function ERC8183Card({ address }: ERC8183Props) {
           functionName: 'approve',
           args: [ERC8183_ADDRESS, parseUnits(amount, 6)],
           account,
-          chain: arcTestnet
+          chain: arcTestnet,
+          maxFeePerGas: 1000000000n,
+          maxPriorityFeePerGas: 1000000000n,
         });
         
         // Wait for receipt
@@ -161,7 +169,9 @@ export function ERC8183Card({ address }: ERC8183Props) {
           functionName: 'fund',
           args: [BigInt(jobId), '0x'],
           account,
-          chain: arcTestnet
+          chain: arcTestnet,
+          maxFeePerGas: 1000000000n,
+          maxPriorityFeePerGas: 1000000000n,
         });
       } 
       else if (action === 'submit') {
@@ -172,7 +182,9 @@ export function ERC8183Card({ address }: ERC8183Props) {
           functionName: 'submit',
           args: [BigInt(jobId), hashValue as `0x${string}`, '0x'],
           account,
-          chain: arcTestnet
+          chain: arcTestnet,
+          maxFeePerGas: 1000000000n,
+          maxPriorityFeePerGas: 1000000000n,
         });
       } 
       else if (action === 'complete') {
@@ -183,7 +195,9 @@ export function ERC8183Card({ address }: ERC8183Props) {
           functionName: 'complete',
           args: [BigInt(jobId), hashValue as `0x${string}`, '0x'],
           account,
-          chain: arcTestnet
+          chain: arcTestnet,
+          maxFeePerGas: 1000000000n,
+          maxPriorityFeePerGas: 1000000000n,
         });
       }
 
@@ -207,6 +221,8 @@ export function ERC8183Card({ address }: ERC8183Props) {
          };
 
          saveHistory([newRecord, ...txHistory]);
+         
+         logAction(`Job Action: ${actionName}`, address, `Executed ${action} flow. TxHash: ${finalHash}`);
       }
     } catch (error: any) {
       console.error('ERC8183 Tx failed:', error);

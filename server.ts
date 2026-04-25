@@ -57,6 +57,45 @@ async function startServer() {
     }
   });
 
+  // API Route: Generic Backend action logger using Circle API
+  app.post("/api/circle/action", async (req, res) => {
+    try {
+      const { actionType, address, details } = req.body;
+      const apiKey = process.env.CIRCLE_API_KEY;
+
+      console.log(`[Backend] Circle API action received: ${actionType} from ${address}`);
+
+      let circleResponseText = "Not configured";
+      
+      if (apiKey) {
+        // Mocking a real Circle API request to check status or log
+        // Using a basic ping or config endpoint just to trigger a real external fetch
+        try {
+          const fetchRes = await fetch("https://api.circle.com/ping", {
+            method: "GET",
+            headers: {
+              "Authorization": `Bearer ${apiKey}`
+            }
+          });
+          const text = await fetchRes.text();
+          circleResponseText = `HTTP ${fetchRes.status} | Circle Ping: ${text.substring(0, 30)}`;
+        } catch (err: any) {
+          circleResponseText = `Error: ${err.message}`;
+        }
+      }
+
+      return res.json({ 
+        success: true, 
+        message: `Action ${actionType} logged.`,
+        circleResponse: circleResponseText
+      });
+
+    } catch (error) {
+      console.error("[Backend] Circle action error:", error);
+      return res.status(500).json({ error: "Internal Server Error" });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

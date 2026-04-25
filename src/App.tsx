@@ -5,13 +5,15 @@ import { ERC8183Card } from './components/ERC8183Card';
 import { GMCard } from './components/GMCard';
 import { WalletButton } from './components/WalletButton';
 import { BalanceWidget } from './components/BalanceWidget';
+import { ApiLogsModal } from './components/ApiLogsModal';
+import { LogProvider } from './context/LogContext';
 import { useWallet } from './hooks/useWallet';
 import { AlertCircle } from 'lucide-react';
 
 // Detect if we're running inside the AI Studio Preview iFrame
 const isIframe = window !== window.parent;
 
-export default function App() {
+function AppContent() {
   const { address, adapter, isConnecting, connect, disconnect } = useWallet();
   const [activeTab, setActiveTab] = useState<'gm' | 'jobs' | 'swap' | 'send'>('gm');
 
@@ -96,11 +98,21 @@ export default function App() {
         {activeTab === 'swap' && <SwapCard address={address} />}
         {activeTab === 'send' && <SendCard address={address} />}
         
-        <div className="absolute bottom-5 left-5 text-xs text-text-secondary flex items-center gap-1.5">
+        <div className="absolute bottom-5 left-5 text-xs text-text-secondary flex items-center gap-1.5 hidden md:flex">
           <div className="w-1.5 h-1.5 bg-[#f1c40f] rounded-full animate-pulse"></div>
           Connected to Arc Testnet
         </div>
       </main>
+
+      <ApiLogsModal />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <LogProvider>
+      <AppContent />
+    </LogProvider>
   );
 }

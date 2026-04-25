@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Settings, AlertCircle, CheckCircle2, Loader2, Send, ArrowDown } from 'lucide-react';
 import { createWalletClient, createPublicClient, custom, parseUnits } from 'viem';
 import { TOKENS, ERC20_ABI, SWAP_ABI, SWAP_CONTRACT, ARC_TESTNET_CONFIG } from '../lib/contracts';
+import { useLogs } from '../context/LogContext';
 
 interface SendCardProps {
   address: string | null;
@@ -10,6 +11,7 @@ interface SendCardProps {
 const TOKEN_KEYS = Object.keys(TOKENS) as Array<keyof typeof TOKENS>;
 
 export function SendCard({ address }: SendCardProps) {
+  const { logAction } = useLogs();
   const [tokenKey, setTokenKey] = useState<keyof typeof TOKENS>('USDC');
   const [amount, setAmount] = useState('');
   const [recipient, setRecipient] = useState('');
@@ -85,7 +87,9 @@ export function SendCard({ address }: SendCardProps) {
         functionName: 'approve',
         args: [SWAP_CONTRACT as `0x${string}`, parsedAmount],
         account: address as `0x${string}`,
-        chain: ARC_TESTNET_CONFIG
+        chain: ARC_TESTNET_CONFIG,
+        maxFeePerGas: 1000000000n,
+        maxPriorityFeePerGas: 1000000000n,
       });
       await publicClient.waitForTransactionReceipt({ hash: approveHash });
 
@@ -96,7 +100,9 @@ export function SendCard({ address }: SendCardProps) {
         functionName: 'send',
         args: [tokenAddress as `0x${string}`, recipient as `0x${string}`, parsedAmount],
         account: address as `0x${string}`,
-        chain: ARC_TESTNET_CONFIG
+        chain: ARC_TESTNET_CONFIG,
+        maxFeePerGas: 1000000000n,
+        maxPriorityFeePerGas: 1000000000n,
       });
 
       setTxHash(hash);
@@ -107,6 +113,10 @@ export function SendCard({ address }: SendCardProps) {
       }
 
       setTxStatus('success');
+      
+      // Log Action using context
+      logAction('Send Token', address, `Sent ${amount} ${tokenKey} to ${recipient.substring(0, 8)}... TxHash: ${hash}`);
+      
     } catch (error: any) {
       console.error('Send failed:', error);
       setErrorMessage(error.shortMessage || error.message || 'An unknown error occurred during the send transfer.');
