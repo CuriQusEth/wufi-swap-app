@@ -1,18 +1,14 @@
 import React, { useState } from 'react';
 import { Settings, AlertCircle, CheckCircle2, Loader2, ArrowDownUp, X } from 'lucide-react';
-import { TOKENS } from '../lib/contracts';
+import { TOKENS, CORE_ABI, CORE_CONTRACT, ARC_TESTNET_CONFIG, ERC20_ABI } from '../lib/contracts';
 import { useLogs } from '../context/LogContext';
-import { AppKit } from '@circle-fin/app-kit';
-import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2';
-import type { EIP1193Provider } from 'viem';
+import { createWalletClient, createPublicClient, custom, http, parseUnits } from 'viem';
 
 interface SwapCardProps {
   address: string | null;
 }
 
 const TOKEN_KEYS = Object.keys(TOKENS) as Array<keyof typeof TOKENS>;
-
-const kit = new AppKit();
 
 export function SwapCard({ address }: SwapCardProps) {
   const { logAction } = useLogs();
@@ -51,23 +47,46 @@ export function SwapCard({ address }: SwapCardProps) {
     setTxHash(null);
 
     try {
-      const adapter = await createViemAdapterFromProvider({
-        provider: window.ethereum as EIP1193Provider,
+      const publicClient = createPublicClient({ 
+        chain: ARC_TESTNET_CONFIG,
+        transport: http('https://rpc.testnet.arc.network') 
+      });
+      const walletClient = createWalletClient({ 
+        chain: ARC_TESTNET_CONFIG,
+        transport: custom(window.ethereum as any) 
       });
 
-      const result = await kit.swap({
-        from: { adapter, chain: 'Arc_Testnet' },
-        tokenIn: tokenIn,
-        tokenOut: tokenOut,
-        amountIn: amountIn,
-        config: {
-          kitKey: import.meta.env.VITE_KIT_KEY || '',
-        }
-      });
+      const dec = 6; 
+      const parsedAmount = parseUnits(amountIn, dec);
+      const addressIn = TOKENS[tokenIn];
+      const addressOut = TOKENS[tokenOut];
 
-      setTxHash(result.txHash);
+      // 1. Approve
+      const { request: approveReq } = await publicClient.simulateContract({
+        address: addressIn as `0x${string}`,
+        abi: ERC20_ABI as any,
+        functionName: 'approve',
+        args: [CORE_CONTRACT as `0x${string}`, parsedAmount],
+        account: address as `0x${string}`,
+      });
+      const approveHash = await walletClient.writeContract(approveReq as any);
+      await publicClient.waitForTransactionReceipt({ hash: approveHash });
+
+      // 2. Swap Call
+      const minAmountOut = 0n; // Simple MVP slippage
+      const { request: swapReq } = await publicClient.simulateContract({
+        address: CORE_CONTRACT as `0x${string}`,
+        abi: CORE_ABI as any,
+        functionName: 'swap',
+        args: [addressIn as `0x${string}`, addressOut as `0x${string}`, parsedAmount, minAmountOut],
+        account: address as `0x${string}`,
+      });
+      const hash = await walletClient.writeContract(swapReq as any);
+      await publicClient.waitForTransactionReceipt({ hash });
+
+      setTxHash(hash);
       setTxStatus('success');
-      logAction('Swap Tokens', address, `Swapped ${amountIn} ${tokenIn} → ${tokenOut}. TxHash: ${result.txHash}`);
+      logAction('Swap Tokens', address, `Swapped ${amountIn} ${tokenIn} → ${tokenOut}. TxHash: ${hash}`);
 
     } catch (error: any) {
       setErrorMessage(error.message || 'Swap başarısız.');

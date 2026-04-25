@@ -41,3 +41,38 @@ export const ERC20_ABI = [
     "type": "function"
   }
 ] as const;
+
+export const CORE_CONTRACT = "0x1a5A130DE2CaD639f79196794221a5981018A9Df";
+
+export const CORE_ABI = [
+  {
+    "inputs": [
+      {"name": "tokenIn", "type": "address"},
+      {"name": "tokenOut", "type": "address"},
+      {"name": "amountIn", "type": "uint256"},
+      {"name": "minAmountOut", "type": "uint256"}
+    ],
+    "name": "swap",
+    "outputs": [{"name": "", "type": "uint256"}],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"name": "token", "type": "address"},
+      {"name": "to", "type": "address"},
+      {"name": "amount", "type": "uint256"}
+    ],
+    "name": "sendToken",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "gm",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+] as const;

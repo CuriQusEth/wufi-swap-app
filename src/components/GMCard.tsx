@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, CheckCircle2, AlertCircle, SunMedium, Flame, X } from 'lucide-react';
 import { createWalletClient, createPublicClient, custom, http } from 'viem';
-import { ARC_TESTNET_CONFIG } from '../lib/contracts';
+import { ARC_TESTNET_CONFIG, CORE_CONTRACT, CORE_ABI } from '../lib/contracts';
 import { useLogs } from '../context/LogContext';
 
 interface GMCardProps {
@@ -99,21 +99,9 @@ export function GMCard({ address }: GMCardProps) {
 
       const account = address as `0x${string}`;
 
-      // Contract execution instead of 0-value transaction
-      const GM_CONTRACT = '0x616259C32a21999EAcefa8ccA964Fc983C253359' as const;
-      const GM_ABI = [
-        {
-          inputs: [],
-          name: "gm",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function"
-        }
-      ] as const;
-
       const { request } = await publicClient.simulateContract({
-        address: GM_CONTRACT,
-        abi: GM_ABI,
+        address: CORE_CONTRACT as `0x${string}`,
+        abi: CORE_ABI as any,
         functionName: 'gm',
         account,
         chain: ARC_TESTNET_CONFIG,
