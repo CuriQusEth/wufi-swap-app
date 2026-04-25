@@ -74,5 +74,16 @@ export const CORE_ABI = [
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
+  },
+  {
+    "inputs": [{"name": "user", "type": "address"}],
+    "name": "getGMProfile",
+    "outputs": [
+      {"name": "lastGM", "type": "uint256"},
+      {"name": "streak", "type": "uint256"},
+      {"name": "totalGM", "type": "uint256"}
+    ],
+    "stateMutability": "view",
+    "type": "function"
   }
 ] as const;

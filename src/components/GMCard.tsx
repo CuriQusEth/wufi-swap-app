@@ -20,26 +20,36 @@ export function GMCard({ address }: GMCardProps) {
 
   useEffect(() => {
     if (address) {
-      const savedData = localStorage.getItem(`arconomy_gm_${address}`);
-      if (savedData) {
-        try {
-          const parsed = JSON.parse(savedData);
-          setStreak(parsed.streak || 0);
-          setLastGMTime(parsed.lastGMTime || null);
-        } catch (e) {}
-      } else {
-        setStreak(0);
-        setLastGMTime(null);
-      }
+      const publicClient = createPublicClient({ 
+        chain: ARC_TESTNET_CONFIG,
+        transport: http('https://rpc.testnet.arc.network') 
+      });
+
+      publicClient.readContract({
+        address: CORE_CONTRACT as `0x${string}`,
+        abi: CORE_ABI as any,
+        functionName: 'getGMProfile',
+        args: [address as `0x${string}`]
+      }).then((result: any) => {
+        const lastGM = Number(result[0]) * 1000; // block.timestamp is in seconds
+        const streak = Number(result[1]);
+        setStreak(streak);
+        if (lastGM > 0) {
+          setLastGMTime(lastGM);
+        }
+      }).catch((e) => {
+        console.error('Failed to read GM profile:', e);
+      });
+    } else {
+      setStreak(0);
+      setLastGMTime(null);
     }
   }, [address]);
 
   const canSayGM = () => {
     if (!lastGMTime) return true;
-    const oneDay = 24 * 60 * 60 * 1000;
-    // For demo purposes, we will treat cooldown as 1 minute so you don't wait a full day while testing:
-    const DEMO_COOLDOWN = 60 * 1000; 
-    return Date.now() - lastGMTime > DEMO_COOLDOWN; // Change to oneDay in production
+    const cooldown = 23 * 60 * 60 * 1000; // 23 hours in milliseconds
+    return Date.now() - lastGMTime >= cooldown;
   };
 
   const executeGM = async () => {
@@ -144,8 +154,12 @@ export function GMCard({ address }: GMCardProps) {
       }
 
     } catch (error: any) {
-      console.error('GM Tx failed:', error);
-      setErrorMessage(error.shortMessage || error.message || 'Transaction failed.');
+      let errorMsg = error.shortMessage || error.message || 'Transaction failed.';
+      if (errorMsg.includes('GM already sent')) {
+        errorMsg = 'You have already said GM recently! Come back later.';
+        setLastGMTime(Date.now());
+      }
+      setErrorMessage(errorMsg);
       setTxStatus('error');
     } finally {
       setIsProcessing(false);

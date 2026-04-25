@@ -95,8 +95,8 @@ function AppContent() {
 
         {activeTab === 'gm' && <GMCard address={address} />}
         {activeTab === 'jobs' && <ERC8183Card address={address} />}
-        {activeTab === 'swap' && <SwapCard address={address} />}
-        {activeTab === 'send' && <SendCard address={address} />}
+        {activeTab === 'swap' && <SwapCard address={address} adapter={adapter} />}
+        {activeTab === 'send' && <SendCard address={address} adapter={adapter} />}
         
         <div className="absolute bottom-5 left-5 text-xs text-text-secondary flex items-center gap-1.5 hidden md:flex">
           <div className="w-1.5 h-1.5 bg-[#f1c40f] rounded-full animate-pulse"></div>

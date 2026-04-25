@@ -17,8 +17,30 @@ export function useWallet() {
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
       if (accounts.length > 0) {
         setAddress(accounts[0]);
-        const viemAdapter = await createViemAdapterFromProvider({ provider: window.ethereum });
-        setAdapter(viemAdapter);
+        try {
+          // Attempt to make window.ethereum writable so Circle adapter can proxy it
+          const global = window as any;
+          if (global.ethereum) {
+             const ethConfig = Object.getOwnPropertyDescriptor(global, 'ethereum');
+             if (ethConfig && (!ethConfig.writable || ethConfig.get)) {
+                 Object.defineProperty(global, 'ethereum', {
+                   value: global.ethereum,
+                   writable: true,
+                   configurable: true,
+                   enumerable: ethConfig.enumerable,
+                 });
+             }
+          }
+        } catch (e) {
+          console.warn('Could not make window.ethereum writable', e);
+        }
+        
+        try {
+            const viemAdapter = await createViemAdapterFromProvider({ provider: window.ethereum });
+            setAdapter(viemAdapter);
+        } catch (err: any) {
+             console.error("Circle Adapter init error:", err);
+        }
       }
     } catch (error) {
       console.error('Failed to connect wallet:', error);
@@ -33,11 +55,13 @@ export function useWallet() {
   };
 
   useEffect(() => {
-    if (window.ethereum) {
+    if (window.ethereum && typeof window.ethereum.on === 'function') {
       window.ethereum.on('accountsChanged', (accounts: string[]) => {
         if (accounts.length > 0) {
           setAddress(accounts[0]);
-          createViemAdapterFromProvider({ provider: window.ethereum }).then(setAdapter);
+          createViemAdapterFromProvider({ provider: window.ethereum })
+            .then(setAdapter)
+            .catch(err => console.error(err));
         } else {
           disconnect();
         }

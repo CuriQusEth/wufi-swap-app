@@ -3,14 +3,18 @@ import { Settings, AlertCircle, CheckCircle2, Loader2, Send, ArrowDown, X } from
 import { TOKENS, CORE_ABI, CORE_CONTRACT, ARC_TESTNET_CONFIG, ERC20_ABI } from '../lib/contracts';
 import { useLogs } from '../context/LogContext';
 import { createWalletClient, createPublicClient, custom, http, parseUnits } from 'viem';
+import { AppKit } from '@circle-fin/app-kit';
 
 interface SendCardProps {
   address: string | null;
+  adapter: any | null;
 }
 
 const TOKEN_KEYS = Object.keys(TOKENS) as Array<keyof typeof TOKENS>;
 
-export function SendCard({ address }: SendCardProps) {
+const kit = new AppKit();
+
+export function SendCard({ address, adapter }: SendCardProps) {
   const { logAction } = useLogs();
   const [tokenKey, setTokenKey] = useState<keyof typeof TOKENS>('USDC');
   const [amount, setAmount] = useState('');
@@ -40,47 +44,62 @@ export function SendCard({ address }: SendCardProps) {
     setTxHash(null);
 
     try {
-      const publicClient = createPublicClient({ 
-        chain: ARC_TESTNET_CONFIG,
-        transport: http('https://rpc.testnet.arc.network') 
-      });
-      const walletClient = createWalletClient({ 
-        chain: ARC_TESTNET_CONFIG,
-        transport: custom(window.ethereum as any) 
-      });
+      if (adapter) {
+        // App Kit Integration
+        const result = await kit.send({
+          from: { adapter, chain: 'Arc_Testnet' },
+          to: recipient,
+          amount: amount,
+          token: tokenKey, 
+          config: {
+            kitKey: import.meta.env.VITE_KIT_KEY || '',
+          }
+        } as any); // Type cast due to varying signature docs
+        setTxHash(result.txHash ?? null);
+        setTxStatus('success');
+        logAction('Send Token (AppKit)', address, `Sent ${amount} ${tokenKey} to ${recipient.slice(0,8)}...`);
+      } else {
+        // Fallback to viem
+        const publicClient = createPublicClient({ 
+          chain: ARC_TESTNET_CONFIG,
+          transport: http('https://rpc.testnet.arc.network') 
+        });
+        const walletClient = createWalletClient({ 
+          chain: ARC_TESTNET_CONFIG,
+          transport: custom(window.ethereum as any) 
+        });
 
-      const dec = 6; 
-      const parsedAmount = parseUnits(amount, dec);
-      const tokenAddress = TOKENS[tokenKey];
+        const dec = 6; 
+        const parsedAmount = parseUnits(amount, dec);
+        const tokenAddress = TOKENS[tokenKey];
 
-      // 1. Approve
-      const { request: approveReq } = await publicClient.simulateContract({
-        address: tokenAddress as `0x${string}`,
-        abi: ERC20_ABI as any,
-        functionName: 'approve',
-        args: [CORE_CONTRACT as `0x${string}`, parsedAmount],
-        account: address as `0x${string}`,
-      });
-      const approveHash = await walletClient.writeContract(approveReq as any);
-      await publicClient.waitForTransactionReceipt({ hash: approveHash });
+        const { request: approveReq } = await publicClient.simulateContract({
+          address: tokenAddress as `0x${string}`,
+          abi: ERC20_ABI as any,
+          functionName: 'approve',
+          args: [CORE_CONTRACT as `0x${string}`, parsedAmount],
+          account: address as `0x${string}`,
+        });
+        const approveHash = await walletClient.writeContract(approveReq as any);
+        await publicClient.waitForTransactionReceipt({ hash: approveHash });
 
-      // 2. Send Call
-      const { request: sendReq } = await publicClient.simulateContract({
-        address: CORE_CONTRACT as `0x${string}`,
-        abi: CORE_ABI as any,
-        functionName: 'sendToken',
-        args: [tokenAddress as `0x${string}`, recipient as `0x${string}`, parsedAmount],
-        account: address as `0x${string}`,
-      });
-      const sendHash = await walletClient.writeContract(sendReq as any);
-      await publicClient.waitForTransactionReceipt({ hash: sendHash });
+        const { request: sendReq } = await publicClient.simulateContract({
+          address: CORE_CONTRACT as `0x${string}`,
+          abi: CORE_ABI as any,
+          functionName: 'sendToken',
+          args: [tokenAddress as `0x${string}`, recipient as `0x${string}`, parsedAmount],
+          account: address as `0x${string}`,
+        });
+        const sendHash = await walletClient.writeContract(sendReq as any);
+        await publicClient.waitForTransactionReceipt({ hash: sendHash });
 
-      setTxHash(sendHash);
-      setTxStatus('success');
-      logAction('Send Token', address, `Sent ${amount} ${tokenKey} to ${recipient.slice(0,8)}...`);
+        setTxHash(sendHash);
+        setTxStatus('success');
+        logAction('Send Token (Viem)', address, `Sent ${amount} ${tokenKey} to ${recipient.slice(0,8)}...`);
+      }
 
     } catch (error: any) {
-      setErrorMessage(error.message || 'Gönderim başarısız.');
+      setErrorMessage(error.shortMessage || error.message || 'Gönderim başarısız.');
       setTxStatus('error');
     } finally {
       setIsSending(false);
