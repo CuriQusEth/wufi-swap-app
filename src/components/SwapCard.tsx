@@ -50,6 +50,9 @@ export function SwapCard({ address, adapter }: SwapCardProps) {
     setErrorMessage(null);
     setTxHash(null);
 
+    // Call Log API before transaction so it shows in Circle Console even if user rejects tx
+    logAction(`Swap Tokens Attempt`, address, `Attempting swap: ${amountIn} ${tokenIn} → ${tokenOut}.`);
+
     try {
       let hash = null;
       

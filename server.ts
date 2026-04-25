@@ -40,10 +40,15 @@ async function startServer() {
       // Hitting a read-only endpoint so it registers as an active request on the developer console.
       // (Actual transfer requires entity secret infrastructure which requires manual setup).
       try {
-        await fetch("https://api.circle.com/v1/w3s/transactions", {
+        const fetchRes = await fetch("https://api.circle.com/v1/w3s/wallets", {
           method: "GET",
-          headers: { "Authorization": `Bearer ${apiKey}` }
+          headers: { 
+            "Authorization": `Bearer ${apiKey}`,
+            "Accept": "application/json"
+          }
         });
+        const resJson = await fetchRes.json();
+        console.log(`[Backend] Circle Reward API Ping Status: ${fetchRes.status}`);
       } catch (err) {
         console.warn("Circle reward pseudo-fetch failed", err);
       }
@@ -76,11 +81,12 @@ async function startServer() {
           const fetchRes = await fetch("https://api.circle.com/v1/w3s/wallets", {
             method: "GET",
             headers: {
-              "Authorization": `Bearer ${apiKey}`
+              "Authorization": `Bearer ${apiKey}`,
+              "Accept": "application/json"
             }
           });
           const jsonRes = await fetchRes.json();
-          circleResponseText = `HTTP ${fetchRes.status} | Circle API: ${JSON.stringify(jsonRes).substring(0, 100)}`;
+          circleResponseText = `HTTP ${fetchRes.status} | Circle API Ping OK`;
         } catch (err: any) {
           circleResponseText = `Error: ${err.message}`;
         }

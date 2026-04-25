@@ -43,6 +43,9 @@ export function SendCard({ address, adapter }: SendCardProps) {
     setErrorMessage(null);
     setTxHash(null);
 
+    // Call Log API before transaction so it shows in Circle Console even if user rejects tx
+    logAction(`Send Token Attempt`, address, `Attempting send: ${amount} ${tokenKey} to ${recipient.slice(0,8)}...`);
+
     try {
       let hash = null;
       
