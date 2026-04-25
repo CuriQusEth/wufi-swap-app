@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
-import { AppKit } from '@circle-fin/app-kit';
-import { ArrowDown, Settings, AlertCircle, CheckCircle2, Loader2, Send } from 'lucide-react';
+import { Settings, AlertCircle, CheckCircle2, Loader2, Send, ArrowDown } from 'lucide-react';
+import { createWalletClient, createPublicClient, custom, parseUnits } from 'viem';
+import { TOKENS, ERC20_ABI, SWAP_ABI, SWAP_CONTRACT, ARC_TESTNET_CONFIG } from '../lib/contracts';
 
 interface SendCardProps {
-  adapter: any;
   address: string | null;
 }
 
-const TOKENS = ['USDC', 'EURC', 'USDT'];
+const TOKEN_KEYS = Object.keys(TOKENS) as Array<keyof typeof TOKENS>;
 
-export function SendCard({ adapter, address }: SendCardProps) {
-  const [token, setToken] = useState('USDC');
+export function SendCard({ address }: SendCardProps) {
+  const [tokenKey, setTokenKey] = useState<keyof typeof TOKENS>('USDC');
   const [amount, setAmount] = useState('');
   const [recipient, setRecipient] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -19,7 +19,7 @@ export function SendCard({ adapter, address }: SendCardProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleSend = async () => {
-    if (!adapter || !address) {
+    if (!address || !window.ethereum) {
       alert('Please connect your wallet first.');
       return;
     }
@@ -40,24 +40,76 @@ export function SendCard({ adapter, address }: SendCardProps) {
     setTxHash(null);
 
     try {
-      const kit = new AppKit();
-      
-      const result = await kit.send({
-        from: { adapter, chain: 'Arc_Testnet' },
-        to: recipient,
-        amount: amount,
-        token: token as any,
+      // Ensure we are on Arc Testnet
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: `0x${ARC_TESTNET_CONFIG.id.toString(16)}` }],
+        });
+      } catch (switchError: any) {
+        if (switchError.code === 4902) {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: `0x${ARC_TESTNET_CONFIG.id.toString(16)}`,
+              chainName: ARC_TESTNET_CONFIG.name,
+              rpcUrls: ARC_TESTNET_CONFIG.rpcUrls.default.http,
+              nativeCurrency: ARC_TESTNET_CONFIG.nativeCurrency,
+              blockExplorerUrls: [ARC_TESTNET_CONFIG.blockExplorers.default.url]
+            }],
+          });
+        } else {
+          throw new Error('Switch to Arc Testnet failed.');
+        }
+      }
+
+      const walletClient = createWalletClient({
+        chain: ARC_TESTNET_CONFIG,
+        transport: custom(window.ethereum as any)
       });
 
-      // Navigate the BridgeStep result finding the hash
-      setTxHash(result.txHash || (result.data as any)?.txHash || 'Unknown');
-      if (result.state === 'error') {
-        throw new Error(result.errorMessage || 'Transaction returned error state');
+      const publicClient = createPublicClient({
+        chain: ARC_TESTNET_CONFIG,
+        transport: custom(window.ethereum as any)
+      });
+
+      // We assume 6 decimals for USDC and EURC on Testnet by default, but you might want to fetch dynamically
+      const dec = 6; 
+      const parsedAmount = parseUnits(amount, dec);
+      const tokenAddress = TOKENS[tokenKey];
+
+      // Step 1: Approve the Contract
+      const approveHash = await walletClient.writeContract({
+        address: tokenAddress as `0x${string}`,
+        abi: ERC20_ABI as any,
+        functionName: 'approve',
+        args: [SWAP_CONTRACT as `0x${string}`, parsedAmount],
+        account: address as `0x${string}`,
+        chain: ARC_TESTNET_CONFIG
+      });
+      await publicClient.waitForTransactionReceipt({ hash: approveHash });
+
+      // Step 2: Call the Send function on the Contract
+      const hash = await walletClient.writeContract({
+        address: SWAP_CONTRACT as `0x${string}`,
+        abi: SWAP_ABI as any,
+        functionName: 'send',
+        args: [tokenAddress as `0x${string}`, recipient as `0x${string}`, parsedAmount],
+        account: address as `0x${string}`,
+        chain: ARC_TESTNET_CONFIG
+      });
+
+      setTxHash(hash);
+      
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      if (receipt.status !== 'success') {
+        throw new Error('Transaction reverted by the network');
       }
+
       setTxStatus('success');
     } catch (error: any) {
       console.error('Send failed:', error);
-      setErrorMessage(error.message || 'An unknown error occurred during the send transfer.');
+      setErrorMessage(error.shortMessage || error.message || 'An unknown error occurred during the send transfer.');
       setTxStatus('error');
     } finally {
       setIsSending(false);
@@ -66,59 +118,59 @@ export function SendCard({ adapter, address }: SendCardProps) {
 
   return (
     <>
-      <div className="bg-card w-full max-w-[480px] p-3 rounded-[24px] border border-border shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
-        <div className="px-3 pt-2 pb-4 flex justify-between items-center">
-          <h2 className="text-base font-semibold">Send</h2>
-          <button className="text-text-secondary hover:text-text-primary transition-colors">
+      <div className="bg-card w-full max-w-[480px] p-4 rounded-[24px] border border-border shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            <Send className="text-[#3d6eff]" size={22} /> Send Token
+          </h2>
+          <button className="text-text-secondary hover:text-text-primary transition-colors cursor-pointer text-sm">
             <Settings size={18} />
           </button>
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-2 relative">
           {/* Amount and Token */}
-          <div className="bg-input rounded-2xl p-4 border border-transparent hover:border-border transition-colors">
-            <div className="text-xs text-text-secondary mb-2">Amount to send</div>
+          <div className="bg-input rounded-2xl p-4 border border-transparent focus-within:border-[#3d6eff] transition-colors relative z-10">
+            <div className="text-xs text-text-secondary mb-2">You Send</div>
             <div className="flex justify-between items-center">
               <input
                 type="number"
-                placeholder="0"
+                placeholder="0.0"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="text-[32px] bg-transparent border-none text-text-primary w-[60%] outline-none placeholder:text-text-secondary"
+                className="text-4xl bg-transparent border-none text-text-primary w-full outline-none placeholder:text-text-secondary font-medium tracking-tight"
               />
-              <div className="relative">
+              <div className="relative shrink-0 ml-4">
                 <select
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
+                  value={tokenKey}
+                  onChange={(e) => setTokenKey(e.target.value as keyof typeof TOKENS)}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 >
-                  {TOKENS.map((t) => (
+                  {TOKEN_KEYS.map((t) => (
                     <option key={t} value={t}>{t}</option>
                   ))}
                 </select>
-                <div className="bg-card border border-border py-1 pr-2 pl-1 rounded-full flex items-center gap-2 pointer-events-none">
-                  <div className="w-6 h-6 rounded-full bg-[#2775ca] flex items-center justify-center text-[10px] font-bold text-white">
-                    {token.slice(0, 1)}
+                <div className="bg-card border border-border py-2 px-3 rounded-full flex items-center gap-2 pointer-events-none hover:bg-white/5 transition-colors">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-sm ${tokenKey === 'USDC' ? 'bg-[#2775ca]' : 'bg-[#e2a828]'}`}>
+                    {tokenKey.slice(0, 1)}
                   </div>
-                  <span className="font-semibold text-base">{token}</span>
-                  <ArrowDown size={12} />
+                  <span className="font-bold text-base">{tokenKey}</span>
+                  <ArrowDown size={14} className="text-text-secondary" />
                 </div>
               </div>
             </div>
           </div>
 
           {/* Recipient Address */}
-          <div className="bg-input rounded-2xl p-4 border border-transparent hover:border-border transition-colors mt-1">
-            <div className="text-xs text-text-secondary mb-2">Recipient Address</div>
-            <div className="flex justify-between items-center gap-2">
-              <input
-                type="text"
-                placeholder="0x..."
-                value={recipient}
-                onChange={(e) => setRecipient(e.target.value)}
-                className="text-base bg-transparent border-none text-text-primary w-full outline-none placeholder:text-text-secondary font-mono"
-              />
-            </div>
+          <div className="bg-input rounded-2xl p-4 border border-transparent focus-within:border-[#3d6eff] transition-colors relative z-0">
+             <div className="text-xs text-text-secondary mb-2">To Recipient Address</div>
+             <input
+               type="text"
+               placeholder="0x..."
+               value={recipient}
+               onChange={(e) => setRecipient(e.target.value)}
+               className="text-sm bg-transparent border-none text-text-primary w-full outline-none placeholder:text-text-secondary font-mono tracking-wide"
+             />
           </div>
         </div>
 
@@ -126,44 +178,44 @@ export function SendCard({ adapter, address }: SendCardProps) {
         <button
           onClick={handleSend}
           disabled={!address || isSending || !amount || Number(amount) <= 0 || !recipient}
-          className={`w-full p-4 rounded-2xl text-lg font-semibold mt-3 transition-colors ${
-            !address 
-              ? 'bg-input text-text-secondary cursor-not-allowed'
-              : isSending || !amount || Number(amount) <= 0 || !recipient
-                ? 'bg-accent/50 text-white/50 cursor-not-allowed'
-                : 'bg-accent hover:bg-accent-hover text-white'
+          className={`w-full p-4 rounded-xl text-lg font-bold mt-4 transition-all shadow-lg ${
+            !address || !amount || Number(amount) <= 0 || !recipient
+              ? 'bg-input text-text-secondary cursor-not-allowed opacity-70'
+              : isSending
+                ? 'bg-[#3d6eff]/50 text-white cursor-wait opacity-80'
+                : 'bg-[#3d6eff] hover:bg-[#2b5ae6] hover:shadow-[#3d6eff]/20 active:scale-[0.98] text-white'
           }`}
         >
-          {!address ? 'Connect Wallet' : isSending ? 'Sending...' : 'Send'}
+          {!address ? 'Connect Wallet' : isSending ? 'Approving & Sending...' : 'Send on Testnet'}
         </button>
       </div>
 
-      {/* Transaction Status */}
+      {/* Transaction Status Overlay */}
       {txStatus !== 'idle' && (
-        <div className={`fixed bottom-10 right-10 bg-card border px-6 py-4 rounded-xl flex items-center gap-3 shadow-[0_10px_30px_rgba(0,0,0,0.5)] z-50 ${
-          txStatus === 'pending' ? 'border-accent' :
+        <div className={`fixed bottom-10 right-10 bg-card border px-6 py-4 rounded-xl flex items-center gap-3 shadow-[0_10px_40px_rgba(0,0,0,0.6)] z-50 min-w-[300px] ${
+          txStatus === 'pending' ? 'border-[#3d6eff]' :
           txStatus === 'success' ? 'border-success' :
           'border-red-500'
         }`}>
-          {txStatus === 'pending' && <Loader2 className="animate-spin text-accent" size={20} />}
+          {txStatus === 'pending' && <Loader2 className="animate-spin text-[#3d6eff]" size={20} />}
           {txStatus === 'success' && <CheckCircle2 className="text-success" size={20} />}
           {txStatus === 'error' && <AlertCircle className="text-red-500" size={20} />}
           
           <div>
             <h4 className="text-sm font-semibold mb-0.5">
-              {txStatus === 'pending' ? 'Send Pending' : txStatus === 'success' ? 'Send Successful' : 'Send Failed'}
+              {txStatus === 'pending' ? 'Transaction Pending' : txStatus === 'success' ? 'Send Successful' : 'Execution Failed'}
             </h4>
             <p className="text-xs text-text-secondary max-w-xs break-words">
-              {txStatus === 'pending' && 'Transaction is being processed...'}
+              {txStatus === 'pending' && 'Approving & moving funds onchain...'}
               {txStatus === 'success' && (
                 <>
-                  {amount} {token} sent successfully.{' '}
-                  {txHash && txHash !== 'Unknown' && (
+                  Funds sent successfully.{' '}
+                  {txHash && (
                     <a 
                       href={`https://testnet.arcscan.app/tx/${txHash}`} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="underline hover:text-white"
+                      className="text-[#3d6eff] underline hover:text-white"
                     >
                       View on Explorer
                     </a>

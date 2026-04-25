@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { SendCard } from './components/SendCard';
+import { SwapCard } from './components/SwapCard';
 import { ERC8183Card } from './components/ERC8183Card';
 import { GMCard } from './components/GMCard';
 import { WalletButton } from './components/WalletButton';
+import { BalanceWidget } from './components/BalanceWidget';
 import { useWallet } from './hooks/useWallet';
 import { AlertCircle } from 'lucide-react';
 
@@ -11,7 +13,7 @@ const isIframe = window !== window.parent;
 
 export default function App() {
   const { address, adapter, isConnecting, connect, disconnect } = useWallet();
-  const [activeTab, setActiveTab] = useState<'gm' | 'jobs' | 'send'>('gm');
+  const [activeTab, setActiveTab] = useState<'gm' | 'jobs' | 'swap' | 'send'>('gm');
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -50,7 +52,7 @@ export default function App() {
       <main className="flex-1 flex flex-col justify-center items-center relative p-4 gap-6">
         
         {isIframe && (
-          <div className="w-full max-w-[550px] bg-yellow-500/10 border border-yellow-500/50 text-yellow-500 p-3 rounded-xl flex items-start gap-3 text-sm font-medium shadow-lg">
+          <div className="w-full max-w-[550px] bg-yellow-500/10 border border-yellow-500/50 text-yellow-500 p-3 rounded-xl flex items-start gap-3 text-sm font-medium shadow-lg mb-2">
             <AlertCircle className="shrink-0 mt-0.5 text-yellow-500" size={18} />
             <p className="leading-snug">
               <strong className="text-yellow-400 block mb-1">Sandbox Preview Active</strong>
@@ -59,31 +61,40 @@ export default function App() {
           </div>
         )}
 
+        <BalanceWidget address={address} />
+
         {/* Tab Selector */}
-        <div className="flex bg-input p-1 rounded-full w-full max-w-[550px]">
+        <div className="flex bg-input p-1 rounded-full w-full max-w-[550px] overflow-x-auto custom-scrollbar">
           <button 
             onClick={() => setActiveTab('gm')}
-            className={`flex-1 py-1.5 text-sm font-semibold rounded-full transition-all ${activeTab === 'gm' ? 'bg-[#3d6eff] text-white shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+            className={`px-4 py-2 text-sm font-semibold whitespace-nowrap rounded-full transition-all ${activeTab === 'gm' ? 'bg-[#3d6eff] text-white shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
           >
             Daily GM
           </button>
           <button 
             onClick={() => setActiveTab('jobs')}
-            className={`flex-1 py-1.5 text-sm font-semibold rounded-full transition-all ${activeTab === 'jobs' ? 'bg-[#3d6eff] text-white shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+            className={`px-4 py-2 text-sm font-semibold whitespace-nowrap rounded-full transition-all ${activeTab === 'jobs' ? 'bg-[#3d6eff] text-white shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
           >
-            Agentic Jobs (ERC-8183)
+            Agentic Jobs
+          </button>
+          <button 
+            onClick={() => setActiveTab('swap')}
+            className={`px-4 py-2 text-sm font-semibold whitespace-nowrap rounded-full transition-all ${activeTab === 'swap' ? 'bg-[#f1c40f] text-black shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+          >
+            Swap
           </button>
           <button 
             onClick={() => setActiveTab('send')}
-            className={`flex-1 py-1.5 text-sm font-semibold rounded-full transition-all ${activeTab === 'send' ? 'bg-[#3d6eff] text-white shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+            className={`px-4 py-2 text-sm font-semibold whitespace-nowrap rounded-full transition-all ${activeTab === 'send' ? 'bg-[#3d6eff] text-white shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
           >
-            Send USDC
+            Send
           </button>
         </div>
 
         {activeTab === 'gm' && <GMCard address={address} />}
-        {activeTab === 'send' && <SendCard adapter={adapter} address={address} />}
         {activeTab === 'jobs' && <ERC8183Card address={address} />}
+        {activeTab === 'swap' && <SwapCard address={address} />}
+        {activeTab === 'send' && <SendCard address={address} />}
         
         <div className="absolute bottom-5 left-5 text-xs text-text-secondary flex items-center gap-1.5">
           <div className="w-1.5 h-1.5 bg-[#f1c40f] rounded-full animate-pulse"></div>
