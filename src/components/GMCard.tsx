@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, CheckCircle2, AlertCircle, SunMedium, Flame } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, SunMedium, Flame, X } from 'lucide-react';
 import { createWalletClient, createPublicClient, custom, http } from 'viem';
+import { ARC_TESTNET_CONFIG } from '../lib/contracts';
 import { useLogs } from '../context/LogContext';
 
 interface GMCardProps {
@@ -58,13 +59,6 @@ export function GMCard({ address }: GMCardProps) {
     setTxHash(null);
 
     try {
-      const arcTestnet = {
-        id: 5042002,
-        name: 'Arc Testnet',
-        nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
-        rpcUrls: { default: { http: ['https://rpc.testnet.arc.network'] } }
-      } as const;
-
       // Ensure Correct Chain
       try {
         await window.ethereum.request({
@@ -95,11 +89,11 @@ export function GMCard({ address }: GMCardProps) {
       }
 
       const publicClient = createPublicClient({ 
-        chain: arcTestnet,
+        chain: ARC_TESTNET_CONFIG,
         transport: http('https://rpc.testnet.arc.network') 
       });
       const walletClient = createWalletClient({ 
-        chain: arcTestnet,
+        chain: ARC_TESTNET_CONFIG,
         transport: custom(window.ethereum as any) 
       });
 
@@ -122,9 +116,7 @@ export function GMCard({ address }: GMCardProps) {
         abi: GM_ABI,
         functionName: 'gm',
         account,
-        chain: arcTestnet,
-        maxFeePerGas: 1000000000n,
-        maxPriorityFeePerGas: 1000000000n,
+        chain: ARC_TESTNET_CONFIG,
       });
 
       const hash = await walletClient.writeContract(request as any);
@@ -249,6 +241,11 @@ export function GMCard({ address }: GMCardProps) {
             <h4 className="text-sm font-semibold">
               {txStatus === 'pending' ? 'Transaction Pending' : txStatus === 'success' ? 'GM Recorded!' : 'Execution Failed'}
             </h4>
+            <div className="absolute top-2 right-2">
+              <button onClick={() => setTxStatus('idle')} className="text-text-secondary hover:text-white">
+                <X size={16} />
+              </button>
+            </div>
           </div>
           <p className="text-xs text-text-secondary max-w-xs break-words mt-1 pl-8">
             {txStatus === 'pending' && 'Please check your wallet and approve the GM contract interaction...'}

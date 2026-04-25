@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, AlertCircle, CheckCircle2, Loader2, Briefcase, History, X } from 'lucide-react';
 import { createWalletClient, createPublicClient, custom, parseAbi, parseUnits, http } from 'viem';
+import { ARC_TESTNET_CONFIG } from '../lib/contracts';
 import { useLogs } from '../context/LogContext';
 
 interface ERC8183Props {
@@ -61,13 +62,6 @@ export function ERC8183Card({ address }: ERC8183Props) {
     setTxHash(null);
 
     try {
-      const arcTestnet = {
-        id: 5042002,
-        name: 'Arc Testnet',
-        nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
-        rpcUrls: { default: { http: ['https://rpc.testnet.arc.network'] } }
-      } as const;
-
       // Request wallet to switch to Arc Testnet
       try {
         await window.ethereum.request({
@@ -102,11 +96,11 @@ export function ERC8183Card({ address }: ERC8183Props) {
       }
 
       const publicClient = createPublicClient({ 
-        chain: arcTestnet,
+        chain: ARC_TESTNET_CONFIG,
         transport: http('https://rpc.testnet.arc.network') 
       });
       const walletClient = createWalletClient({ 
-        chain: arcTestnet,
+        chain: ARC_TESTNET_CONFIG,
         transport: custom(window.ethereum as any) 
       });
       const account = address as `0x${string}`;
@@ -126,9 +120,7 @@ export function ERC8183Card({ address }: ERC8183Props) {
             '0x0000000000000000000000000000000000000000'
           ],
           account,
-          chain: arcTestnet,
-          maxFeePerGas: 1000000000n,
-          maxPriorityFeePerGas: 1000000000n,
+          chain: ARC_TESTNET_CONFIG,
         });
       } 
       else if (action === 'budget') {
@@ -139,9 +131,7 @@ export function ERC8183Card({ address }: ERC8183Props) {
           functionName: 'setBudget',
           args: [BigInt(jobId), parseUnits(amount, 6), '0x'],
           account,
-          chain: arcTestnet,
-          maxFeePerGas: 1000000000n,
-          maxPriorityFeePerGas: 1000000000n,
+          chain: ARC_TESTNET_CONFIG,
         });
       } 
       else if (action === 'fund') {
@@ -153,9 +143,7 @@ export function ERC8183Card({ address }: ERC8183Props) {
           functionName: 'approve',
           args: [ERC8183_ADDRESS, parseUnits(amount, 6)],
           account,
-          chain: arcTestnet,
-          maxFeePerGas: 1000000000n,
-          maxPriorityFeePerGas: 1000000000n,
+          chain: ARC_TESTNET_CONFIG,
         });
         
         // Wait for receipt
@@ -169,9 +157,7 @@ export function ERC8183Card({ address }: ERC8183Props) {
           functionName: 'fund',
           args: [BigInt(jobId), '0x'],
           account,
-          chain: arcTestnet,
-          maxFeePerGas: 1000000000n,
-          maxPriorityFeePerGas: 1000000000n,
+          chain: ARC_TESTNET_CONFIG,
         });
       } 
       else if (action === 'submit') {
@@ -182,9 +168,7 @@ export function ERC8183Card({ address }: ERC8183Props) {
           functionName: 'submit',
           args: [BigInt(jobId), hashValue as `0x${string}`, '0x'],
           account,
-          chain: arcTestnet,
-          maxFeePerGas: 1000000000n,
-          maxPriorityFeePerGas: 1000000000n,
+          chain: ARC_TESTNET_CONFIG,
         });
       } 
       else if (action === 'complete') {
@@ -195,9 +179,7 @@ export function ERC8183Card({ address }: ERC8183Props) {
           functionName: 'complete',
           args: [BigInt(jobId), hashValue as `0x${string}`, '0x'],
           account,
-          chain: arcTestnet,
-          maxFeePerGas: 1000000000n,
-          maxPriorityFeePerGas: 1000000000n,
+          chain: ARC_TESTNET_CONFIG,
         });
       }
 
@@ -414,6 +396,11 @@ export function ERC8183Card({ address }: ERC8183Props) {
             <h4 className="text-sm font-semibold">
               {txStatus === 'pending' ? 'Transaction Pending' : txStatus === 'success' ? 'Contract Executed!' : 'Execution Failed'}
             </h4>
+            <div className="absolute top-2 right-2">
+              <button onClick={() => setTxStatus('idle')} className="text-text-secondary hover:text-white">
+                <X size={16} />
+              </button>
+            </div>
           </div>
           <p className="text-xs text-text-secondary max-w-xs break-words mt-1 pl-8">
             {txStatus === 'pending' && 'Please check your wallet (MetaMask) and approve the transaction...'}

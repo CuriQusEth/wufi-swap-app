@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
-import { Settings, AlertCircle, CheckCircle2, Loader2, ArrowDownUp } from 'lucide-react';
-import { createWalletClient, createPublicClient, custom, parseUnits, http } from 'viem';
-import { TOKENS, ERC20_ABI, SWAP_ABI, SWAP_CONTRACT, ARC_TESTNET_CONFIG } from '../lib/contracts';
+import { Settings, AlertCircle, CheckCircle2, Loader2, ArrowDownUp, X } from 'lucide-react';
+import { TOKENS } from '../lib/contracts';
 import { useLogs } from '../context/LogContext';
+import { AppKit } from '@circle-fin/app-kit';
+import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2';
+import type { EIP1193Provider } from 'viem';
 
 interface SwapCardProps {
   address: string | null;
 }
 
 const TOKEN_KEYS = Object.keys(TOKENS) as Array<keyof typeof TOKENS>;
+
+const kit = new AppKit();
 
 export function SwapCard({ address }: SwapCardProps) {
   const { logAction } = useLogs();
@@ -27,12 +31,12 @@ export function SwapCard({ address }: SwapCardProps) {
 
   const handleSwap = async () => {
     if (!address || !window.ethereum) {
-      alert('Please connect your wallet first.');
+      alert('Cüzdanını bağla.');
       return;
     }
 
     if (!amountIn || isNaN(Number(amountIn)) || Number(amountIn) <= 0) {
-      alert('Please enter a valid amount.');
+      alert('Geçerli bir miktar gir.');
       return;
     }
 
@@ -47,71 +51,26 @@ export function SwapCard({ address }: SwapCardProps) {
     setTxHash(null);
 
     try {
-      // Ensure we are on Arc Testnet
-      try {
-        await window.ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: `0x${ARC_TESTNET_CONFIG.id.toString(16)}` }],
-        });
-      } catch (switchError: any) {
-         throw new Error('Switch to Arc Testnet failed or chain needs to be added.');
-      }
-
-      const walletClient = createWalletClient({
-        chain: ARC_TESTNET_CONFIG,
-        transport: custom(window.ethereum as any)
-      });
-      const publicClient = createPublicClient({
-        chain: ARC_TESTNET_CONFIG,
-        transport: http('https://rpc.testnet.arc.network')
+      const adapter = await createViemAdapterFromProvider({
+        provider: window.ethereum as EIP1193Provider,
       });
 
-      const dec = 6; 
-      const parsedAmount = parseUnits(amountIn, dec);
-      const addressIn = TOKENS[tokenIn];
-      const addressOut = TOKENS[tokenOut];
-
-      // Step 1: Approve Swap Contract
-      const { request: approveReq } = await publicClient.simulateContract({
-        address: addressIn as `0x${string}`,
-        abi: ERC20_ABI as any,
-        functionName: 'approve',
-        args: [SWAP_CONTRACT as `0x${string}`, parsedAmount],
-        account: address as `0x${string}`,
-        chain: ARC_TESTNET_CONFIG,
-        maxFeePerGas: 1000000000n,
-        maxPriorityFeePerGas: 1000000000n,
+      const result = await kit.swap({
+        from: { adapter, chain: 'Arc_Testnet' },
+        tokenIn: tokenIn,
+        tokenOut: tokenOut,
+        amountIn: amountIn,
+        config: {
+          kitKey: import.meta.env.VITE_KIT_KEY || '',
+        }
       });
-      const approveHash = await walletClient.writeContract(approveReq as any);
-      await publicClient.waitForTransactionReceipt({ hash: approveHash });
 
-      // Step 2: Swap Execution
-      const { request: swapReq } = await publicClient.simulateContract({
-        address: SWAP_CONTRACT as `0x${string}`,
-        abi: SWAP_ABI as any,
-        functionName: 'swap',
-        args: [addressIn as `0x${string}`, addressOut as `0x${string}`, parsedAmount],
-        account: address as `0x${string}`,
-        chain: ARC_TESTNET_CONFIG,
-        maxFeePerGas: 1000000000n,
-        maxPriorityFeePerGas: 1000000000n,
-      });
-      const swapHash = await walletClient.writeContract(swapReq as any);
-      
-      setTxHash(swapHash);
-      const receipt = await publicClient.waitForTransactionReceipt({ hash: swapHash });
-      
-      if (receipt.status !== 'success') {
-        throw new Error('Swap reverted by the network');
-      }
-
+      setTxHash(result.txHash);
       setTxStatus('success');
-      
-      logAction('Swap Tokens', address, `Swapped ${amountIn} ${tokenIn} for ${tokenOut}. TxHash: ${swapHash}`);
-      
+      logAction('Swap Tokens', address, `Swapped ${amountIn} ${tokenIn} → ${tokenOut}. TxHash: ${result.txHash}`);
+
     } catch (error: any) {
-      console.error('Swap failed:', error);
-      setErrorMessage(error.shortMessage || error.message || 'Swap transfer failed.');
+      setErrorMessage(error.message || 'Swap başarısız.');
       setTxStatus('error');
     } finally {
       setIsSwapping(false);
@@ -253,6 +212,11 @@ export function SwapCard({ address }: SwapCardProps) {
             <h4 className="text-sm font-semibold mb-0.5">
               {txStatus === 'pending' ? 'Swap Pending' : txStatus === 'success' ? 'Swap Successful' : 'Swap Failed'}
             </h4>
+            <div className="absolute top-2 right-2">
+              <button onClick={() => setTxStatus('idle')} className="text-text-secondary hover:text-white">
+                <X size={16} />
+              </button>
+            </div>
             <p className="text-xs text-text-secondary max-w-xs break-words">
               {txStatus === 'pending' && 'Approving & resolving onchain...'}
               {txStatus === 'success' && (

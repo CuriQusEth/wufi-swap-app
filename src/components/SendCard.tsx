@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
-import { Settings, AlertCircle, CheckCircle2, Loader2, Send, ArrowDown } from 'lucide-react';
-import { createWalletClient, createPublicClient, custom, parseUnits, http } from 'viem';
-import { TOKENS, ERC20_ABI, SWAP_ABI, SWAP_CONTRACT, ARC_TESTNET_CONFIG } from '../lib/contracts';
+import { Settings, AlertCircle, CheckCircle2, Loader2, Send, ArrowDown, X } from 'lucide-react';
+import { TOKENS } from '../lib/contracts';
 import { useLogs } from '../context/LogContext';
+import { AppKit } from '@circle-fin/app-kit';
+import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2';
+import type { EIP1193Provider } from 'viem';
 
 interface SendCardProps {
   address: string | null;
 }
 
 const TOKEN_KEYS = Object.keys(TOKENS) as Array<keyof typeof TOKENS>;
+
+const kit = new AppKit();
 
 export function SendCard({ address }: SendCardProps) {
   const { logAction } = useLogs();
@@ -22,17 +26,15 @@ export function SendCard({ address }: SendCardProps) {
 
   const handleSend = async () => {
     if (!address || !window.ethereum) {
-      alert('Please connect your wallet first.');
+      alert('Cüzdanını bağla.');
       return;
     }
-
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-      alert('Please enter a valid amount.');
+    if (!amount || Number(amount) <= 0) {
+      alert('Geçerli bir miktar gir.');
       return;
     }
-
-    if (!recipient || !recipient.startsWith('0x') || recipient.length !== 42) {
-      alert('Please enter a valid Ethereum address starting with 0x.');
+    if (!recipient || recipient.length !== 42) {
+      alert('Geçerli bir adres gir.');
       return;
     }
 
@@ -42,86 +44,23 @@ export function SendCard({ address }: SendCardProps) {
     setTxHash(null);
 
     try {
-      // Ensure we are on Arc Testnet
-      try {
-        await window.ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: `0x${ARC_TESTNET_CONFIG.id.toString(16)}` }],
-        });
-      } catch (switchError: any) {
-        if (switchError.code === 4902) {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [{
-              chainId: `0x${ARC_TESTNET_CONFIG.id.toString(16)}`,
-              chainName: ARC_TESTNET_CONFIG.name,
-              rpcUrls: ARC_TESTNET_CONFIG.rpcUrls.default.http,
-              nativeCurrency: ARC_TESTNET_CONFIG.nativeCurrency,
-              blockExplorerUrls: [ARC_TESTNET_CONFIG.blockExplorers.default.url]
-            }],
-          });
-        } else {
-          throw new Error('Switch to Arc Testnet failed.');
-        }
-      }
-
-      const walletClient = createWalletClient({
-        chain: ARC_TESTNET_CONFIG,
-        transport: custom(window.ethereum as any)
+      const adapter = await createViemAdapterFromProvider({
+        provider: window.ethereum as EIP1193Provider,
       });
 
-      const publicClient = createPublicClient({
-        chain: ARC_TESTNET_CONFIG,
-        transport: http('https://rpc.testnet.arc.network')
+      const result = await kit.send({
+        from: { adapter, chain: 'Arc_Testnet' },
+        to: recipient,
+        amount: amount,
+        token: tokenKey, 
       });
 
-      // We assume 6 decimals for USDC and EURC on Testnet by default, but you might want to fetch dynamically
-      const dec = 6; 
-      const parsedAmount = parseUnits(amount, dec);
-      const tokenAddress = TOKENS[tokenKey];
-
-      // Step 1: Approve the Contract
-      const { request: approveReq } = await publicClient.simulateContract({
-        address: tokenAddress as `0x${string}`,
-        abi: ERC20_ABI as any,
-        functionName: 'approve',
-        args: [SWAP_CONTRACT as `0x${string}`, parsedAmount],
-        account: address as `0x${string}`,
-        chain: ARC_TESTNET_CONFIG,
-        maxFeePerGas: 1000000000n,
-        maxPriorityFeePerGas: 1000000000n,
-      });
-      const approveHash = await walletClient.writeContract(approveReq as any);
-      await publicClient.waitForTransactionReceipt({ hash: approveHash });
-
-      // Step 2: Call the Send function on the Contract
-      const { request: sendReq } = await publicClient.simulateContract({
-        address: SWAP_CONTRACT as `0x${string}`,
-        abi: SWAP_ABI as any,
-        functionName: 'send',
-        args: [tokenAddress as `0x${string}`, recipient as `0x${string}`, parsedAmount],
-        account: address as `0x${string}`,
-        chain: ARC_TESTNET_CONFIG,
-        maxFeePerGas: 1000000000n,
-        maxPriorityFeePerGas: 1000000000n,
-      });
-      const hash = await walletClient.writeContract(sendReq as any);
-
-      setTxHash(hash);
-      
-      const receipt = await publicClient.waitForTransactionReceipt({ hash });
-      if (receipt.status !== 'success') {
-        throw new Error('Transaction reverted by the network');
-      }
-
+      setTxHash(result.txHash ?? null);
       setTxStatus('success');
-      
-      // Log Action using context
-      logAction('Send Token', address, `Sent ${amount} ${tokenKey} to ${recipient.substring(0, 8)}... TxHash: ${hash}`);
-      
+      logAction('Send Token', address, `Sent ${amount} ${tokenKey} to ${recipient.slice(0,8)}...`);
+
     } catch (error: any) {
-      console.error('Send failed:', error);
-      setErrorMessage(error.shortMessage || error.message || 'An unknown error occurred during the send transfer.');
+      setErrorMessage(error.message || 'Gönderim başarısız.');
       setTxStatus('error');
     } finally {
       setIsSending(false);
@@ -217,6 +156,11 @@ export function SendCard({ address }: SendCardProps) {
             <h4 className="text-sm font-semibold mb-0.5">
               {txStatus === 'pending' ? 'Transaction Pending' : txStatus === 'success' ? 'Send Successful' : 'Execution Failed'}
             </h4>
+            <div className="absolute top-2 right-2">
+              <button onClick={() => setTxStatus('idle')} className="text-text-secondary hover:text-white">
+                <X size={16} />
+              </button>
+            </div>
             <p className="text-xs text-text-secondary max-w-xs break-words">
               {txStatus === 'pending' && 'Approving & moving funds onchain...'}
               {txStatus === 'success' && (
