@@ -103,11 +103,24 @@ export function GMCard({ address }: GMCardProps) {
 
       const account = address as `0x${string}`;
 
-      // Lightweight GM logic: 0-value Tx to self
-      const hash = await walletClient.sendTransaction({
+      // Contract execution instead of 0-value transaction
+      const GM_CONTRACT = '0x616259C32a21999EAcefa8ccA964Fc983C253359' as const;
+      const GM_ABI = [
+        {
+          inputs: [],
+          name: "gm",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function"
+        }
+      ] as const;
+
+      const hash = await walletClient.writeContract({
+        address: GM_CONTRACT,
+        abi: GM_ABI,
+        functionName: 'gm',
         account,
-        to: account,
-        value: 0n,
+        chain: arcTestnet
       });
 
       await publicClient.waitForTransactionReceipt({ hash });
@@ -173,7 +186,7 @@ export function GMCard({ address }: GMCardProps) {
           </div>
           <h3 className="text-lg font-bold">Say "GM" on Arc</h3>
           <p className="text-sm text-center text-text-secondary mt-2 px-4">
-            Prove your daily activity by recording a 0-USDC transaction on the Arc Testnet. 
+            Prove your daily activity by interacting with the GM Smart Contract on the Arc Testnet. 
             Build your reputation streak!
           </p>
           
@@ -214,7 +227,7 @@ export function GMCard({ address }: GMCardProps) {
             </h4>
           </div>
           <p className="text-xs text-text-secondary max-w-xs break-words mt-1 pl-8">
-            {txStatus === 'pending' && 'Please check your wallet and approve the 0-value transaction...'}
+            {txStatus === 'pending' && 'Please check your wallet and approve the GM contract interaction...'}
             {txStatus === 'success' && (
               <>
                 Your GM streak has increased by +1!{' '}
